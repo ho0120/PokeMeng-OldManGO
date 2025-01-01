@@ -12,6 +12,8 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.widget.Toast;
+
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
 
+import com.PokeMeng.OldManGO.Medicine.SharedViewModelFactory;
 import com.PokeMeng.OldManGO.R;
 import com.PokeMeng.OldManGO.Medicine.AlarmReceiver;
 import com.PokeMeng.OldManGO.Medicine.Medicine;
@@ -31,51 +34,57 @@ import com.PokeMeng.OldManGO.Medicine.ui.SharedViewModel;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.SavedStateHandle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 
 public class DashboardFragment extends Fragment {
-    private SharedViewModel sharedViewModel;
+    private SharedViewModel viewModel;
     private RecyclerView recyclerView;
     private MedicineAdapter adapter;
     private TextView textView11;
     private AlarmManager alarmManager;
 
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.m_fragment_dashboard, container, false);
 
-        sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedViewModel.class);
+        // 创建 SavedStateHandle 实例
+        SavedStateHandle savedStateHandle = new SavedStateHandle();
+        // 创建 SharedViewModel 并传递 Context 和 SavedStateHandle
+        viewModel = new ViewModelProvider(requireActivity(), new SharedViewModelFactory(requireActivity(), savedStateHandle)).get(SharedViewModel.class);
+
         recyclerView = root.findViewById(R.id.eat);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-
         textView11 = root.findViewById(R.id.textView11);
+
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String currentDate = sdf.format(new Date());
         textView11.setText(currentDate);
 
         // 初始化适配器
         adapter = new MedicineAdapter(getContext(), new ArrayList<>(), medicine -> {
-            sharedViewModel.addClickedMedicineFromDashboard(medicine);  // 你想添加的点击事件
-            sharedViewModel.addClickedMedicineId(medicine.getId());      // 原有的点击处理
+            viewModel.addClickedMedicineFromDashboard(medicine);
+            viewModel.addClickedMedicineId(medicine.getId());
             markMedicineAsTaken(medicine);
-        }, true, false, sharedViewModel);
+        }, true, false,false, viewModel);
         recyclerView.setAdapter(adapter);
 
         // 观察药品数据
-        sharedViewModel.getMedicines().observe(getViewLifecycleOwner(), medicines -> {
+        viewModel.getMedicines().observe(getViewLifecycleOwner(), medicines -> {
             Log.d("DashboardFragment", "Received medicines: " + medicines.size());
             List<Medicine> todayMedicines = getTodayMedicines(medicines);
             List<Medicine> flattenedMedicines = flattenMedicines(todayMedicines);
-            adapter.updateMedicines(flattenedMedicines); // 更新适配器
+            adapter.updateMedicines(flattenedMedicines);
+            Log.d("DashboardFragment", "Adapter item count: " + adapter.getItemCount());
 
             for (Medicine medicine : flattenedMedicines) {
-                setAlarmForMedicine(medicine); // 为每个药物设置闹钟
+                setAlarmForMedicine(medicine);
             }
         });
-
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!requireContext().getSystemService(AlarmManager.class).canScheduleExactAlarms()) {
@@ -86,20 +95,9 @@ public class DashboardFragment extends Fragment {
 
         alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
 
-        // 观察药品数据
-        sharedViewModel.getMedicines().observe(getViewLifecycleOwner(), medicines -> {
-            Log.d("DashboardFragment", "Received medicines: " + medicines.size()); // 调试日志
-            List<Medicine> todayMedicines = getTodayMedicines(medicines);
-            List<Medicine> flattenedMedicines = flattenMedicines(todayMedicines);
-            adapter.updateMedicines(flattenedMedicines); // 更新适配器
-
-            for (Medicine medicine : flattenedMedicines) {
-                setAlarmForMedicine(medicine); // 为每个药物设置闹钟
-            }
-        });
-
-        return root; // 修复此处返回根视图
+        return root;
     }
+
 
     private List<Medicine> getTodayMedicines(List<Medicine> medicines) {
         List<Medicine> todayMedicines = new ArrayList<>();
@@ -134,7 +132,6 @@ public class DashboardFragment extends Fragment {
         }
         return false;
     }
-
 
     private char getDayOfWeekChar(int dayOfWeek) {
         switch (dayOfWeek) {
@@ -209,7 +206,7 @@ public class DashboardFragment extends Fragment {
                 return 0;
             }
         });
-
+        Log.d("DashboardFragment", "Flattened medicines: " + flattenedList.toString());
         return flattenedList;
     }
 
@@ -253,7 +250,10 @@ public class DashboardFragment extends Fragment {
     }
 
     private void markMedicineAsTaken(Medicine medicine) {
-        sharedViewModel.addTakenMedicine(medicine);
+        viewModel.addTakenMedicine(medicine);
         // 其他逻辑可以根据需求添加
     }
+
+
+
 }

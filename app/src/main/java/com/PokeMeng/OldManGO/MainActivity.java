@@ -19,12 +19,15 @@ import com.PokeMeng.OldManGO.Prize.Prize;
 import com.PokeMeng.OldManGO.Task.TaskAll;
 import com.PokeMeng.OldManGO.Location.MapMainActivity;
 import com.PokeMeng.OldManGO.Medicine.MainActivity5;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 import android.speech.tts.TextToSpeech;
+import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
     private TextToSpeech tts;
@@ -95,7 +98,9 @@ public class MainActivity extends AppCompatActivity {
             speak("每日簽到");
             startActivity(new Intent(this, CheckIn.class));
         });
-
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String id = currentUser.getUid();
+        ((TextView)findViewById(R.id.textView14)).setText(id);
         // 設定台灣時區
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Taipei"));
 

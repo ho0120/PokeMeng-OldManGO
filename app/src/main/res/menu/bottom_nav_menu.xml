@@ -3,20 +3,20 @@
 
     <item
         android:id="@+id/navigation_home"
-        android:icon="@drawable/three"
-        android:title="新增藥品"
-        android:fontFamily="@font/jfopenhuninn"/>
+        android:fontFamily="@font/jfopenhuninn"
+        android:icon="@drawable/x"
+        android:title="新增藥品" />
 
     <item
         android:id="@+id/navigation_dashboard"
-        android:icon="@android:drawable/ic_menu_sort_by_size"
-        android:title="今日用藥"
-        android:fontFamily="@font/jfopenhuninn"/>
+        android:fontFamily="@font/jfopenhuninn"
+        android:icon="@drawable/three"
+        android:title="今日用藥" />
 
     <item
         android:id="@+id/navigation_notifications"
+        android:fontFamily="@font/jfopenhuninn"
         android:icon="@drawable/history"
-        android:title="歷史紀錄"
-        android:fontFamily="@font/jfopenhuninn"/>
+        android:title="歷史紀錄" />
 
 </menu>

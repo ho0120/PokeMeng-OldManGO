@@ -2,82 +2,98 @@ package com.PokeMeng.OldManGO.Prize;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.widget.Button;
-import android.widget.ImageView;
+import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.PokeMeng.OldManGO.R;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class Prize extends AppCompatActivity {
 
-    private static final int REQUEST_CODE_REWARD_DETAILS = 1; // 請求碼
-    private int currentPoints = 40100; // 模擬用戶當前積分
-    String pointsExpiryDate = "2024年12月31日"; // 積分到期日
+    private int currentPoints; //用戶當前積分
+    FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+    private ActivityResultLauncher<Intent> rewardDetailsLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.prize);
-
-        // 設置顯示積分的 TextView
-        TextView pointsTextView = findViewById(R.id.pointsTextView);
-        pointsTextView.setText("當前積分: " + currentPoints);
-
+        getPointsFromFireStore();
         // 設置積分到期日
-        TextView expiryDateTextView = findViewById(R.id.expiryDateTextView);
-        expiryDateTextView.setText("積分有效期至: " + pointsExpiryDate);
-
-
-
-        // 設置第一個獎品的點擊事件
-        ImageView rewardImageView1 = findViewById(R.id.rewardImageView1);
-        rewardImageView1.setOnClickListener(v -> {
-            openRewardDetails(1, 21000); // 獎品1所需積分為21000
-        });
-
-        // 設置第二個獎品的點擊事件
-        ImageView rewardImageView2 = findViewById(R.id.rewardImageView2);
-        rewardImageView2.setOnClickListener(v -> {
-            openRewardDetails(2, 15000); // 獎品2所需積分為15000
-        });
-
+        String pointsExpiryDate = "2024年12月31日";
+        ((TextView)findViewById(R.id.expiryDateTextView)).setText(getString(R.string.Prize_points_expiry_date, pointsExpiryDate));
+        // 設置第一個獎品的點擊事件 // 獎品1所需積分為21000
+        findViewById(R.id.rewardImageView1).setOnClickListener(v -> openRewardDetails(1, 5));
+        // 設置第二個獎品的點擊事件 // 獎品2所需積分為15000
+        findViewById(R.id.rewardImageView2).setOnClickListener(v -> openRewardDetails(2, 20));
         // 設置查看兌換記錄按鈕的點擊事件
-        Button viewHistoryButton = findViewById(R.id.viewHistoryButton);
-        viewHistoryButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Prize.this, ExchangeHistory.class);
-            startActivity(intent);
-        });
+        findViewById(R.id.viewHistoryButton).setOnClickListener(v -> startActivity(new Intent(Prize.this, ExchangeHistory.class)));
+        // 假设button10对应21000积分的兑换
+        findViewById(R.id.button10).setOnClickListener(v -> handleRedeem(5));
+        // 假设button9对应15000积分的兑换
+        findViewById(R.id.button9).setOnClickListener(v -> handleRedeem(20));
+        rewardDetailsLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(), result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        int updatedPoints = result.getData().getIntExtra("updatedPoints", currentPoints);
+                        currentPoints = updatedPoints;  // 更新當前積分
+                        showCurrentUserPoints();        // 刷新積分顯示
+                    }
+                }
+        );
+    }
 
-        // 设置button10和button9的点击事件
-        Button button10 = findViewById(R.id.button10);
-        Button button9 = findViewById(R.id.button9);
-
-        button10.setOnClickListener(v -> {
-            // 示例功能: 进行相应操作
-            handleRedeem(21000); // 假设button10对应21000积分的兑换
+    private void getPointsFromFireStore() {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
+        DocumentReference userRef = db.collection("Users").document(userId);
+        userRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                DocumentSnapshot document = task.getResult();
+                if (document.exists()) {
+                    Long points = document.getLong("points");
+                    if (points != null) {
+                        Toast.makeText(Prize.this, "Points found: " + points, Toast.LENGTH_SHORT).show();
+                        currentPoints = points.intValue();
+                    }
+                    else {
+                        Toast.makeText(Prize.this, "No points found", Toast.LENGTH_SHORT).show();
+                        currentPoints = 0;
+                    }
+                    showCurrentUserPoints(); // Update the points display after fetching data
+                } else
+                    Log.d("TAG", "No such document");
+            } else
+                Log.d("TAG", "get failed with ", task.getException());
         });
-
-        button9.setOnClickListener(v -> {
-            // 示例功能: 进行相应操作
-            handleRedeem(15000); // 假设button9对应15000积分的兑换
-        });
+    }
+    private void showCurrentUserPoints() {
+        // 設置顯示積分的 TextView
+        ((TextView)findViewById(R.id.pointsTextView)).setText(getString(R.string.Prize_points_text, currentPoints));
     }
 
     private void handleRedeem(int requiredPoints) {
         if (currentPoints >= requiredPoints) {
             openRewardDetails(1, requiredPoints); // 调用打开奖励详情的方法
-        } else {
+        }
+        // else {
             // 显示提示用户积分不足
             // 您可以使用Toast或AlertDialog来提示
-        }
+        //}
     }
-
-    // 跳转到详细页面的方法
-
-
-
-
 
     // 跳轉到詳細頁面的方法
     private void openRewardDetails(int rewardId, int requiredPoints) {
@@ -85,20 +101,6 @@ public class Prize extends AppCompatActivity {
         intent.putExtra("userPoints", currentPoints); // 傳遞當前積分到 reward_details 活動
         intent.putExtra("rewardId", rewardId); // 傳遞獎品 ID
         intent.putExtra("requiredPoints", requiredPoints); // 傳遞所需積分
-        startActivityForResult(intent, REQUEST_CODE_REWARD_DETAILS);
+        rewardDetailsLauncher.launch(intent);
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_REWARD_DETAILS && resultCode == RESULT_OK) {
-            // 獲取更新後的積分
-            currentPoints = data.getIntExtra("updatedPoints", currentPoints);
-
-            // 更新顯示的積分
-            TextView pointsTextView = findViewById(R.id.pointsTextView);
-            pointsTextView.setText("當前積分: " + currentPoints);
-        }
-    }
-
 }

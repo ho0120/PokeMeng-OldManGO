@@ -27,7 +27,7 @@
 
         <ToggleButton
             android:id="@+id/toggleSunday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="日"
             android:textOn="日"
@@ -36,7 +36,7 @@
 
         <ToggleButton
             android:id="@+id/toggleMonday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="一"
             android:textOn="一"
@@ -45,7 +45,7 @@
 
         <ToggleButton
             android:id="@+id/toggleTuesday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="二"
             android:textOn="二"
@@ -54,7 +54,7 @@
 
         <ToggleButton
             android:id="@+id/toggleWednesday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="三"
             android:textOn="三"
@@ -63,7 +63,7 @@
 
         <ToggleButton
             android:id="@+id/toggleThursday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="四"
             android:textOn="四"
@@ -72,7 +72,7 @@
 
         <ToggleButton
             android:id="@+id/toggleFriday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="五"
             android:textOn="五"
@@ -81,7 +81,7 @@
 
         <ToggleButton
             android:id="@+id/toggleSaturday"
-            android:layout_width="51dp"
+            android:layout_width="46dp"
             android:layout_height="70dp"
             android:textOff="六"
             android:textOn="六"

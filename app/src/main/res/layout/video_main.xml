@@ -17,7 +17,7 @@
         android:layout_marginBottom="-5dp"
         android:backgroundTint="@color/design_default_color_background"
         android:fontFamily="@font/jfopenhuninn"
-        android:onClick="gotoMain"
+        android:onClick="gotomain"
         android:text="主介面"
         android:textAlignment="center"
         android:textAllCaps="false"
@@ -51,7 +51,7 @@
                 android:layout_height="200dp"
                 android:layout_margin="10dp"
                 android:background="@color/cardview_shadow_end_color"
-                android:onClick="playVideo1"
+
                 android:scaleType="centerInside"
                 android:src="@drawable/video_sport01img" />
 
@@ -74,7 +74,7 @@
                 android:layout_height="200dp"
                 android:layout_margin="10dp"
                 android:background="@color/cardview_shadow_end_color"
-                android:onClick="playVideo2"
+
                 android:scaleType="centerInside"
                 android:src="@drawable/video_sport02img" />
 
@@ -97,7 +97,7 @@
                 android:layout_height="150dp"
                 android:layout_margin="10dp"
                 android:background="@color/cardview_shadow_end_color"
-                android:onClick="playVideo3"
+
                 android:scaleType="centerInside"
                 android:src="@drawable/video_sport03img" />
 

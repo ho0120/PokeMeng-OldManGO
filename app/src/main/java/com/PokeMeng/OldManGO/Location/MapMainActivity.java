@@ -34,10 +34,13 @@ import java.util.Locale;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class MapMainActivity extends AppCompatActivity {
     FirebaseFirestore firestore;
     FirebaseDatabase database;
+
     private String destinationAddress; // 儲存Firebase中取得的地址
     private FusedLocationProviderClient fusedLocationClient;
 
@@ -47,6 +50,7 @@ public class MapMainActivity extends AppCompatActivity {
     String longititudeTwo = "120.5115";  // 另一個位置的經度
     double currentLatitude;
     double currentLongitude;
+    private String userId;
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
@@ -87,83 +91,126 @@ public class MapMainActivity extends AppCompatActivity {
 
         // 自動加載最後的位置
         fetchLastLocation();
+        // 初始化 Firebase Authentication
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            userId = currentUser.getUid(); // 獲取當前使用者的 UID
+        } else {
+            Toast.makeText(this, "未登入，請重新登入", Toast.LENGTH_SHORT).show();
+            finish(); // 返回登入畫面或結束當前活動
+        }
+
+        // 其他初始化代碼
+        database = FirebaseDatabase.getInstance();
+        firestore = FirebaseFirestore.getInstance();
+
+        requestLocationPermission();
     }
 
 
 
     private void fetchLocationHistory() {
-        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
-        String userId = "elderly_user_id";  // 假設這是老人的 ID
+        if (userId == null) {
+            Toast.makeText(this, "無法取得使用者 UID", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // 依據時間排序，從 Firebase 獲取歷史紀錄
-        mDatabase.child("locations").child(userId)
-                .orderByChild("timestamp")
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        if (dataSnapshot.exists()) {
-                            List<String> locationHistory = new ArrayList<>();
-                            for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                                // 讀取緯度、經度和時間戳
-                                Double latitude = snapshot.child("latitude").getValue(Double.class);
-                                Double longitude = snapshot.child("longitude").getValue(Double.class);
-                                Long timestamp = snapshot.child("timestamp").getValue(Long.class);
+        firestore.collection("Users").document(userId).collection("LocationHistory")
+                .orderBy("timestamp")
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        List<String> locationHistory = new ArrayList<>();
+                        for (var document : task.getResult()) {
+                            Double latitude = document.getDouble("latitude");
+                            Double longitude = document.getDouble("longitude");
+                            Long timestamp = document.getLong("timestamp");
 
-                                if (latitude != null && longitude != null && timestamp != null) {
-                                    // 將時間戳轉換為人類可讀的時間格式
-                                    String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date(timestamp));
-
-                                    // 組裝顯示格式
-                                    String locationRecord = "緯度: " + latitude + ", 經度: " + longitude + " (時間: " + dateTime + ")";
-                                    locationHistory.add(locationRecord);
-                                }
+                            if (latitude != null && longitude != null && timestamp != null) {
+                                String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                        .format(new Date(timestamp));
+                                String locationRecord = "緯度: " + latitude + ", 經度: " + longitude + " (時間: " + dateTime + ")";
+                                locationHistory.add(locationRecord);
                             }
+                        }
 
-                            // 將歷史紀錄顯示在 ListView 中
-                            ListView locationHistoryListView = findViewById(R.id.locationHistoryListView);
-                            ArrayAdapter<String> adapter = new ArrayAdapter<>(MapMainActivity.this, android.R.layout.simple_list_item_1, locationHistory);
-                            locationHistoryListView.setAdapter(adapter);
-                        } else {
+                        ListView locationHistoryListView = findViewById(R.id.locationHistoryListView);
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(MapMainActivity.this, android.R.layout.simple_list_item_1, locationHistory);
+                        locationHistoryListView.setAdapter(adapter);
+
+                        if (locationHistory.isEmpty()) {
                             Toast.makeText(MapMainActivity.this, "沒有歷史位置紀錄", Toast.LENGTH_SHORT).show();
                         }
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError databaseError) {
-                        Toast.makeText(MapMainActivity.this, "無法讀取位置紀錄", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MapMainActivity.this, "讀取 Firestore 資料失敗", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
     // 從 Firebase 提取最新位置
     private void fetchLastLocation() {
-        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+//        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+//        String userId = "elderly_user_id";  // 假設這是老人的 ID
+//
+//        mDatabase.child("locations").child(userId)
+//                .addListenerForSingleValueEvent(new ValueEventListener() {
+//                    @Override
+//                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                        if (dataSnapshot.exists()) {
+//                            // 提取緯度、經度和時間戳
+//                            double latitude = dataSnapshot.child("latitude").getValue(Double.class);
+//                            double longitude = dataSnapshot.child("longitude").getValue(Double.class);
+//                            long timestamp = dataSnapshot.child("timestamp").getValue(Long.class);
+//
+//                            // 將時間戳轉換為可讀的格式
+//                            String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+//                                    .format(new Date(timestamp));
+//
+//                            // 顯示位置和時間
+//                            Toast.makeText(MapMainActivity.this, "最後位置: " + latitude + ", " + longitude + "\n時間: " + dateTime, Toast.LENGTH_LONG).show();
+//                        } else {
+//                            Toast.makeText(MapMainActivity.this, "無法取得位置紀錄", Toast.LENGTH_SHORT).show();
+//                        }
+//                    }
+//
+//                    @Override
+//                    public void onCancelled(@NonNull DatabaseError databaseError) {
+//                        Toast.makeText(MapMainActivity.this, "讀取失敗", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
         String userId = "elderly_user_id";  // 假設這是老人的 ID
 
-        mDatabase.child("locations").child(userId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        if (dataSnapshot.exists()) {
-                            // 提取緯度、經度和時間戳
-                            double latitude = dataSnapshot.child("latitude").getValue(Double.class);
-                            double longitude = dataSnapshot.child("longitude").getValue(Double.class);
-                            long timestamp = dataSnapshot.child("timestamp").getValue(Long.class);
+        // 從 Firestore 取得歷史位置紀錄
+        firestore.collection("Users").document(userId).collection("LocationHistory")
+                .orderBy("timestamp")  // 根據時間排序
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        List<String> locationHistory = new ArrayList<>();
+                        for (var document : task.getResult()) {
+                            Double latitude = document.getDouble("latitude");
+                            Double longitude = document.getDouble("longitude");
+                            Long timestamp = document.getLong("timestamp");
 
-                            // 將時間戳轉換為可讀的格式
-                            String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                    .format(new Date(timestamp));
-
-                            // 顯示位置和時間
-                            Toast.makeText(MapMainActivity.this, "最後位置: " + latitude + ", " + longitude + "\n時間: " + dateTime, Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(MapMainActivity.this, "無法取得位置紀錄", Toast.LENGTH_SHORT).show();
+                            if (latitude != null && longitude != null && timestamp != null) {
+                                // 將時間戳轉換為可讀的格式
+                                String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                        .format(new Date(timestamp));
+                                String locationRecord = "緯度: " + latitude + ", 經度: " + longitude + " (時間: " + dateTime + ")";
+                                locationHistory.add(locationRecord);
+                            }
                         }
-                    }
 
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError databaseError) {
-                        Toast.makeText(MapMainActivity.this, "讀取失敗", Toast.LENGTH_SHORT).show();
+                        // 將歷史紀錄顯示在 ListView 中
+                        ListView locationHistoryListView = findViewById(R.id.locationHistoryListView);
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(MapMainActivity.this, android.R.layout.simple_list_item_1, locationHistory);
+                        locationHistoryListView.setAdapter(adapter);
+
+                        if (locationHistory.isEmpty()) {
+                            Toast.makeText(MapMainActivity.this, "沒有歷史位置紀錄", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(MapMainActivity.this, "讀取 Firestore 資料失敗", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -192,26 +239,66 @@ public class MapMainActivity extends AppCompatActivity {
         DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
 
         // 創建一個包含位置和時間的物件
+//        HashMap<String, Object> locationData = new HashMap<>();
+//        locationData.put("latitude", latitude);
+//        locationData.put("longitude", longitude);
+//        locationData.put("timestamp", System.currentTimeMillis()); // 儲存當前的時間戳
+//
+//        // 儲存到 Firebase Realtime Database
+//        String userId = "elderly_user_id";  // 假設這是老人的 ID
+//        String recordKey = mDatabase.child("locations").child(userId).push().getKey(); // 生成唯一key
+//        mDatabase.child("locations").child(userId).child(recordKey).setValue(locationData)
+//                .addOnCompleteListener(task -> {
+//                    if (task.isSuccessful()) {
+//                        Toast.makeText(MapMainActivity.this, "位置已儲存到 Realtime Database", Toast.LENGTH_SHORT).show();
+//                    } else {
+//                        Toast.makeText(MapMainActivity.this, "無法儲存到 Realtime Database", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
+//
+//        // 同時儲存到 Firestore
+//        firestore.collection("Users").document(userId).collection("LocationHistory").document(recordKey)
+//                .set(locationData, SetOptions.merge()) // 使用 merge 防止覆蓋其他資料
+//                .addOnCompleteListener(task -> {
+//                    if (task.isSuccessful()) {
+//                        Toast.makeText(MapMainActivity.this, "位置已儲存到 Firestore", Toast.LENGTH_SHORT).show();
+//                    } else {
+//                        Toast.makeText(MapMainActivity.this, "無法儲存到 Firestore", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
+        // 建立 Firestore 實例
+//        String userId = "elderly_user_id";  // 假設這是老人的 ID
+//        String recordKey = firestore.collection("Users").document(userId).collection("LocationHistory").document().getId(); // 生成唯一的紀錄 ID
+//
+//        // 建立位置資料物件
+//        HashMap<String, Object> locationData = new HashMap<>();
+//        locationData.put("latitude", latitude);
+//        locationData.put("longitude", longitude);
+//        locationData.put("timestamp", System.currentTimeMillis());
+//
+//        // 儲存到 Firestore 的 Users 集合下
+//        firestore.collection("Users").document(userId).collection("LocationHistory").document(recordKey)
+//                .set(locationData)
+//                .addOnCompleteListener(task -> {
+//                    if (task.isSuccessful()) {
+//                        Toast.makeText(MapMainActivity.this, "位置已儲存到 Firestore", Toast.LENGTH_SHORT).show();
+//                    } else {
+//                        Toast.makeText(MapMainActivity.this, "無法儲存到 Firestore", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
+        if (userId == null) {
+            Toast.makeText(this, "無法取得使用者 UID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String recordKey = firestore.collection("Users").document(userId).collection("LocationHistory").document().getId();
         HashMap<String, Object> locationData = new HashMap<>();
         locationData.put("latitude", latitude);
         locationData.put("longitude", longitude);
-        locationData.put("timestamp", System.currentTimeMillis()); // 儲存當前的時間戳
+        locationData.put("timestamp", System.currentTimeMillis());
 
-        // 儲存到 Firebase Realtime Database
-        String userId = "elderly_user_id";  // 假設這是老人的 ID
-        String recordKey = mDatabase.child("locations").child(userId).push().getKey(); // 生成唯一key
-        mDatabase.child("locations").child(userId).child(recordKey).setValue(locationData)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(MapMainActivity.this, "位置已儲存到 Realtime Database", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(MapMainActivity.this, "無法儲存到 Realtime Database", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-        // 同時儲存到 Firestore
         firestore.collection("Users").document(userId).collection("LocationHistory").document(recordKey)
-                .set(locationData, SetOptions.merge()) // 使用 merge 防止覆蓋其他資料
+                .set(locationData)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Toast.makeText(MapMainActivity.this, "位置已儲存到 Firestore", Toast.LENGTH_SHORT).show();

@@ -1,7 +1,6 @@
 package com.PokeMeng.OldManGO.Prize;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -9,15 +8,25 @@ import android.widget.ListView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.PokeMeng.OldManGO.R;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ExchangeHistory extends AppCompatActivity {
 
     private ListView exchangeHistoryListView;
     private List<String> exchangeHistoryList;
-
+    private FirebaseFirestore db;
+    private FirebaseUser currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,26 +34,50 @@ public class ExchangeHistory extends AppCompatActivity {
         setContentView(R.layout.prize_exchange_history);
 
         exchangeHistoryListView = findViewById(R.id.exchangeHistoryListView);
-
-        // 读取保存的兑换记录
-        SharedPreferences sharedPreferences = getSharedPreferences("ExchangeHistory", MODE_PRIVATE);
-        String history = sharedPreferences.getString("history", "");
-
         exchangeHistoryList = new ArrayList<>();
-        if (!history.isEmpty()) {
-            String[] records = history.split("\n");
-            for (String record : records) {
-                exchangeHistoryList.add(record);
-            }
+
+        // 获取当前用户
+        currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        db = FirebaseFirestore.getInstance();
+
+        if (currentUser != null) {
+            // 读取 Firestore 中的兑换记录
+            loadExchangeHistory();
+
         }
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1, exchangeHistoryList);
-        exchangeHistoryListView.setAdapter(adapter);
     }
 
-    public void gotoprize (View v){
-        Intent it=new Intent(this, Prize.class);
+    private void loadExchangeHistory() {
+        String userId = currentUser.getUid();
+        CollectionReference exchangeHistoryRef = db.collection("Users")
+                .document(userId)
+                .collection("ExchangeHistory");
+
+        // 获取用户的所有兑换记录
+        exchangeHistoryRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                QuerySnapshot querySnapshot = task.getResult();
+                if (querySnapshot != null) {
+                    for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+                        String record = document.getString("record");
+                        exchangeHistoryList.add(record); // 添加到兑换记录列表
+                    }
+                    if (exchangeHistoryList.isEmpty()) {
+                        exchangeHistoryList.add("暂无兑换记录");
+                    }
+                    // 更新 ListView
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                            android.R.layout.simple_list_item_1, exchangeHistoryList);
+                    exchangeHistoryListView.setAdapter(adapter);
+                }
+            }
+        });
+    }
+
+
+    public void gotoprize(View v) {
+        Intent it = new Intent(this, Prize.class);
         startActivity(it);
     }
 }

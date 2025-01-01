@@ -6,14 +6,23 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.PokeMeng.OldManGO.R;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public class RewardDetails extends AppCompatActivity {
 
@@ -78,6 +87,9 @@ public class RewardDetails extends AppCompatActivity {
             });
         } else {
             redeemButton.setEnabled(false); // 積分不足時按鈕不可用
+            redeemButton.setOnClickListener(v ->
+                    Toast.makeText(this, "積分不足，無法兌換", Toast.LENGTH_SHORT).show()
+            );
         }
 
 
@@ -85,21 +97,75 @@ public class RewardDetails extends AppCompatActivity {
 
     // 更新積分並返回到前一個頁面
     private void updatePointsAfterRedemption() {
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("updatedPoints", userPoints - requiredPoints); // 返回更新後的積分
-        setResult(RESULT_OK, resultIntent);
+//        Intent resultIntent = new Intent();
+//        resultIntent.putExtra("updatedPoints", userPoints - requiredPoints); // 返回更新後的積分
+//        setResult(RESULT_OK, resultIntent);
 //        finish(); // 關閉當前活動
+//        Intent resultIntent = new Intent();
+//        resultIntent.putExtra("updatedPoints", userPoints - requiredPoints); // 返回更新後的積分
+//        setResult(RESULT_OK, resultIntent);
+//        finish(); // 關閉當前活動
+        // 計算新的積分
+        int updatedPoints = userPoints - requiredPoints;
+
+        // 獲取當前用戶
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            String userId = currentUser.getUid();
+
+            // 獲取Firestore
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+            // 更新用戶的積分
+            DocumentReference userRef = db.collection("Users").document(userId);
+            userRef.update("points", updatedPoints)
+                    .addOnSuccessListener(aVoid -> {
+                        // Firestore更新成功
+                        Toast.makeText(RewardDetails.this, "積分更新成功！", Toast.LENGTH_SHORT).show();
+
+                        // 返回更新後的積分到上一頁面!!!(重要)
+                        Intent resultIntent = new Intent();
+                        resultIntent.putExtra("updatedPoints", updatedPoints); // 返回更新后的积分
+                        setResult(RESULT_OK, resultIntent);
+                        finish(); // 关闭当前页面
+                    })
+                    .addOnFailureListener(e -> {
+                        // Firestore更新失败
+                        Toast.makeText(RewardDetails.this, "積分更新失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
     // 保存兌換記錄到 SharedPreferences
     private void saveExchangeHistory() {
-        SharedPreferences sharedPreferences = getSharedPreferences("ExchangeHistory", MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
+        // 獲取當前用戶
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            String userId = currentUser.getUid();
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        String record = getCurrentDateTime() + " - " + getRewardDescription() + " - " + requiredPoints + "分";
-        String existingRecords = sharedPreferences.getString("history", "");
-        editor.putString("history", existingRecords + "\n" + record);
-        editor.apply();
+            // 創建紀錄
+            String record = getCurrentDateTime() + " - " + getRewardDescription() + " - " + requiredPoints + "分";
+
+            // 設firestore細項
+            Map<String, Object> exchangeRecord = new HashMap<>();
+            exchangeRecord.put("record", record);
+            exchangeRecord.put("timestamp", FieldValue.serverTimestamp());
+
+            // 保存紀錄到 Firestore
+            db.collection("Users")
+                    .document(userId)
+                    .collection("ExchangeHistory")
+                    .add(exchangeRecord)
+                    .addOnSuccessListener(documentReference -> {
+                        // 記錄保存成功
+                        Toast.makeText(RewardDetails.this, "兑换记录保存成功！", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        // 記錄保存失敗
+                        Toast.makeText(RewardDetails.this, "兑换记录保存失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
     private String getCurrentDateTime() {

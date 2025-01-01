@@ -18,8 +18,6 @@ import com.PokeMeng.OldManGO.R;
 public class AlarmReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "medication_reminder_channel";
 
-
-
     @Override
     public void onReceive(Context context, Intent intent) {
         // 从 Intent 中获取药物名称和时间

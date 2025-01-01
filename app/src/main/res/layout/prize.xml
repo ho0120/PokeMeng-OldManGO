@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wlecomeuse03"
+    android:background="@drawable/all_background3"
     tools:context=".Prize.Prize">
 
     <!-- 固定显示用户积分的区域 -->
@@ -75,7 +75,6 @@
                 android:clickable="true"
                 android:contentDescription="点击查看详细信息"
                 android:focusable="true"
-                android:onClick="openRewardDetails1"
                 android:src="@drawable/reward_image" />
 
             <TextView
@@ -117,7 +116,6 @@
                 android:clickable="true"
                 android:contentDescription="点击查看详细信息"
                 android:focusable="true"
-                android:onClick="openRewardDetails2"
                 android:src="@drawable/reward_image02" />
 
             <TextView

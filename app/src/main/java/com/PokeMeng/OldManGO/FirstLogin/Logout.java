@@ -30,40 +30,36 @@ public class Logout extends AppCompatActivity {
         setContentView(R.layout.logout);
 
 
-        GoogleSignInOptions gso=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(getString(R.string.web_id))
                 .requestEmail()
                 .build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
 
-        logout=findViewById(R.id.logout);
+        logout = findViewById(R.id.logout);
 
         logout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 獲取目前登入的 Google 帳戶
-                GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(Logout.this);
-                if (account != null) {
-                    // Firebase 認證登出
-                    FirebaseAuth.getInstance().signOut();
+                // Firebase 認證登出
+                FirebaseAuth.getInstance().signOut();
 
-                    // Google 登入客戶端登出
-                    googleSignInClient.signOut().addOnCompleteListener(new OnCompleteListener<Void>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Void> task) {
-                            // 撤銷訪問權限，確保用戶下次必須重新選擇帳號
-                            googleSignInClient.revokeAccess().addOnCompleteListener(new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
-                                    // 重定向至登入頁面
-                                    startActivity(new Intent(getApplicationContext(), FacebookGoogle.class));
-                                    finish();
-                                }
-                            });
-                        }
-                    });
-                }
+                // Google 登入客戶端登出並撤銷訪問權限
+                googleSignInClient.signOut().addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        googleSignInClient.revokeAccess().addOnCompleteListener(new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                // 重定向至登入頁面
+                                startActivity(new Intent(getApplicationContext(), FacebookGoogle.class));
+                                finish();
+                            }
+                        });
+                    }
+                });
             }
         });
+
     }
 }

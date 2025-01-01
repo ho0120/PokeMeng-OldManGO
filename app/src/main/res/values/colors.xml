@@ -17,4 +17,6 @@
     <color name="colorAccent">#FF4081</color>
     <color name="textColor">#000000</color>
     <color name="backgroundColor">#FFFFFF</color>
+    <color name="highlight">#FFFF00</color> <!-- 黄色，用于高亮按钮 -->
+    <color name="defaultButton">#CCCCCC</color> <!-- 灰色，按钮默认颜色 -->
 </resources>

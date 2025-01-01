@@ -85,6 +85,21 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <TextView
+            android:id="@+id/stockTextView"
+            android:layout_width="159dp"
+            android:layout_height="62dp"
+            android:layout_marginTop="145dp"
+            android:layout_marginEnd="70dp"
+            android:fontFamily="@font/edukai5"
+            android:text="庫存剩餘"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

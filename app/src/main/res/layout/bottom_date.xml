@@ -10,18 +10,33 @@
         android:id="@+id/weekdayButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="每天、星期幾" />
+        android:layout_margin="10dp"
+        android:background="@drawable/all_style_button"
+        android:fontFamily="@font/jfopenhuninn"
+        android:text="每天、星期幾"
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/intervalButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="日間隔" />
+        android:layout_margin="10dp"
+        android:background="@drawable/all_style_button"
+        android:fontFamily="@font/jfopenhuninn"
+        android:text="日間隔"
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/asNeededButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="根據需要用藥" />
+        android:layout_margin="10dp"
+        android:background="@drawable/all_style_button"
+        android:fontFamily="@font/jfopenhuninn"
+        android:text="根據需要用藥"
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
 </LinearLayout>

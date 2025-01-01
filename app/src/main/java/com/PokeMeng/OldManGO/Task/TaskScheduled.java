@@ -23,6 +23,8 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.PokeMeng.OldManGO.R;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.hdev.calendar.bean.DateInfo;
@@ -56,6 +58,7 @@ public class TaskScheduled extends AppCompatActivity {
     ArrayList<String> stringList = new ArrayList<>();
     ArrayList<ArrayList<DateInfo>> dateList = new ArrayList<>();
     ArrayList<String> documentIds = new ArrayList<>();
+    FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,8 +80,12 @@ public class TaskScheduled extends AppCompatActivity {
     }
 
     private void loadScheduledTasks() {
-        String userID = "your_user_id"; // Replace with actual user ID
-        FirebaseFirestore.getInstance().collection("Users").document(userID).collection("TaskDetails").get()
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
+        FirebaseFirestore.getInstance().collection("Users").document(userId).collection("TaskDetails").get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         processTaskDocuments(task.getResult());
@@ -165,7 +172,12 @@ public class TaskScheduled extends AppCompatActivity {
             long millis = calendar.getTimeInMillis();
             dateTimestamps.add(new Timestamp(millis / 1000, (int) (millis % 1000) * 1000000));
         }
-        FirebaseFirestore.getInstance().collection("Users").document("your_user_id").collection("TaskDetails").document(documentId)
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
+        FirebaseFirestore.getInstance().collection("Users").document(userId).collection("TaskDetails").document(documentId)
                 .update("任務日期", dateTimestamps)
                 .addOnSuccessListener(aVoid -> Toast.makeText(this, "任務上傳成功!", Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e -> Toast.makeText(this, "任務上傳失敗" + e.getMessage(), Toast.LENGTH_SHORT).show());
@@ -175,7 +187,11 @@ public class TaskScheduled extends AppCompatActivity {
         ListView listView = findViewById(R.id.TaskScheduled_allList);
         SparseBooleanArray checkedItemPositions = listView.getCheckedItemPositions();
         final int[] removedCount = {0};
-        String userId = "your_user_id"; // Replace with actual user ID
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
         for (int i = listView.getCount() - 1; i >= 0; i--) {
             if (checkedItemPositions.get(i)) {
                 String documentId = documentIds.get(i);

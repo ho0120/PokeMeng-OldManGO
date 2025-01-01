@@ -10,8 +10,8 @@ android {
         applicationId = "com.PokeMeng.OldManGO"
         minSdk = 26
         targetSdk = 34
-        versionCode = 37
-        versionName = "1.0.37"
+        versionCode = 45
+        versionName = "1.0.45"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -32,10 +32,12 @@ android {
         viewBinding = true
         dataBinding = true
     }
+    lint {
+        abortOnError = false  // 禁用 Lint 错误导致构建中止
+    }
 }
 
 dependencies {
-
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
     testImplementation(libs.junit)

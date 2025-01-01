@@ -1,7 +1,12 @@
 <resources>
     <string name="app_name">PokeMeng OldManGO</string>
-    <string name="challenge_DateStep">%1$d步</string>
-    <string name="challenge_myStepText">目前步數%1$d步</string>
+    <string name="all_returnText">返回</string>
+    <string name="ChallengeAll_myStepText">今日步數:%1$d步</string>
+    <string name="ChallengeAll_illustrateText">%1$s~%2$s</string>
+    <string name="ChallengeNow_DateStep">%1$d步</string>
+    <string name="ChallengeNow_illustrateText">%1$s達成目標\n即可獲得10點積分</string>
+    <string name="ChallengeNow_imageDescription">finishChallenge</string>
+    <string name="doggyDescription">doggy</string>
     <string name="task_show_choose_date">ShowChooseDate</string>
     <string name="task_returnImageDescription">goBack</string>
     <string name="TaskAll_points_text">我的積分：</string>
@@ -10,11 +15,14 @@
     <string name="TaskAll_add_task">新增任務</string>
     <string name="TaskAll_scheduled_tasks">已排日程</string>
     <string name="TaskAll_cheat_select_all">作弊：全選</string>
-    <string name="TaskAll_reward_hint">可領取全選獎勵！</string>
+    <string name="TaskAll_reward_hint">可領取獎勵！</string>
     <string name="TaskAll_all_points">我的積分: %1$d</string>
-
+    <string name="Prize_points_text">當前積分: %1$d</string>
+    <string name="Prize_points_expiry_date">積分有效期至: %1$s</string>
     <string name="web_id">485011129050-hq7o32c78m9jg2shtu3pv0uea3udm5ua.apps.googleusercontent.com</string>
-
+    <string-array name="AdminUID">
+        <item>Y0ocB9jE7QWvNchmCnX3iQaaX0u1</item>
+    </string-array>
     <string-array name="用藥頻率">
         <item>一天一次</item>
         <item>一天兩次</item>

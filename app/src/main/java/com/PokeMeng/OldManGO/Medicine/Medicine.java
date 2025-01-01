@@ -36,6 +36,12 @@ public class Medicine implements Parcelable {
         this.deleted = false; // 默认未删除
     }
 
+
+
+    public Medicine() {
+        // 需要的无参构造函数
+    }
+
     protected Medicine(Parcel in) {
         name = in.readString();
         frequency = in.readString();
@@ -47,8 +53,11 @@ public class Medicine implements Parcelable {
         spinner2Value = in.readString();
         id = in.readInt();
         startDate = in.readString();
+        isTaken = in.readByte() != 0; // 从 Parcel 中读取是否已服用
         deleted = in.readByte() != 0; // 从 Parcel 中读取删除状态
     }
+
+
 
     // Getters and Setters
     public String getName() {
@@ -164,6 +173,8 @@ public class Medicine implements Parcelable {
         this.startDate = newMedicine.getStartDate();
     }
 
+
+
     public static final Parcelable.Creator<Medicine> CREATOR = new Parcelable.Creator<Medicine>() {
         @Override
         public Medicine createFromParcel(Parcel in) {
@@ -193,6 +204,7 @@ public class Medicine implements Parcelable {
         dest.writeString(spinner2Value);
         dest.writeInt(id);
         dest.writeString(startDate);
+        dest.writeByte((byte) (isTaken ? 1 : 0)); // 写入是否服用
         dest.writeByte((byte) (deleted ? 1 : 0)); // 写入删除状态
     }
 }

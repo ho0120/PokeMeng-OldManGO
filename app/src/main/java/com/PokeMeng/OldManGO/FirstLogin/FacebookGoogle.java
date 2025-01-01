@@ -32,6 +32,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.SetOptions;
 
 import java.util.HashMap;
 
@@ -44,6 +45,7 @@ public class FacebookGoogle extends AppCompatActivity {
     int currentmaaIndex = 0;
     int currentpaaIndex = 0;
     Handler handler = new Handler();
+
 
     Runnable maaRunnable = new Runnable() {
         @Override
@@ -228,8 +230,8 @@ public class FacebookGoogle extends AppCompatActivity {
                             // 將資料儲存到 Firestore 的 Users 集合中
                             firestore.collection("Users")
                                     .document(user.getUid()) // 使用者的 UID 作為文件 ID
-                                    .set(map) // 使用 map 來儲存資料
-                                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                    .set(map, SetOptions.merge())// 使用 map 來儲存資料使用set會覆蓋掉目前的文所有的欄位，要使用merge option，現在還有一個問題是清除資料後並沒有跳出重新登入要求，要改成跳出登入要求，會讀不到目前的使用者，因為讀不到無法把uid放在text上，會直接閃退 現在已經清除了，所以會閃退(現在主畫面的文字是uid，讀不到就會閃退)
+                                    .addOnCompleteListener(new OnCompleteListener<Void>() { //剛才的狀況是在重新執行後因為使用set，會覆蓋調積分的欄位會被清空沒有積分的欄位，現在，ok
                                         @Override
                                         public void onComplete(@NonNull Task<Void> task) {
                                             if (task.isSuccessful()) {

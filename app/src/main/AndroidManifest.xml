@@ -49,8 +49,10 @@
         <activity android:name=".Task.TaskAdd" android:exported="false" />
         <activity android:name=".Task.TaskAll" android:exported="false" />
         <!-- Challenge Activities -->
-        <activity android:name=".Challenge.ChallengeNow" android:exported="false" />
-        <activity android:name=".Challenge.ChallengeAll" android:exported="false" />
+        <activity android:name=".Challenge.ChallengeNow" android:exported="false"
+            android:attributionTags="com.PokeMeng.OldManGO.ChallengeAll"/>
+        <activity android:name=".Challenge.ChallengeAll" android:exported="true"
+            android:attributionTags="com.PokeMeng.OldManGO.ChallengeAll"/>
         <!-- Exchange and Prize Activities -->
         <activity android:name=".Prize.ExchangeHistory" android:exported="false" />
         <activity android:name=".Prize.Prize" android:exported="false" />

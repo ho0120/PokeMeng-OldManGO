@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -17,6 +18,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.PokeMeng.OldManGO.Game.GameMain;
 import com.PokeMeng.OldManGO.MainActivity;
 import com.PokeMeng.OldManGO.R;
+import com.PokeMeng.OldManGO.TaskManager;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class video_main extends AppCompatActivity {
 
@@ -105,6 +115,7 @@ public class video_main extends AppCompatActivity {
     }
 
     private void playVideo(int videoResId) {
+
         Uri videoUri = Uri.parse("android.resource://" + getPackageName() + "/" + videoResId);
         videoView.setVideoURI(videoUri);
 
@@ -119,7 +130,25 @@ public class video_main extends AppCompatActivity {
         isFullscreen = false;
 
         enterFullscreen();
-
+        List<Boolean> isDone = Arrays.asList(false, false, false, false, true, false, false); // 初始狀態全部設為 false
+        List<String> taskNames = Arrays.asList("每日健走150步", "每日簽到", "用藥提醒查看", "今日已完成用藥", "觀看運動影片", "玩遊戲(防失智)", "查看運動挑戰");
+        Map<String, Object> taskStatusData = new HashMap<>();
+        taskStatusData.put("is_done", isDone); // 任務完成狀態
+        taskStatusData.put("task_name", taskNames); // 任務名稱
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String userId = currentUser.getUid();
+        // 这里是你要添加的代码，用于完成每日任务
+        TaskManager taskManager = new TaskManager(FirebaseFirestore.getInstance(), userId);
+        taskManager.checkAndCompleteTask("WatchedVideo", result -> {
+            if (!result) {
+                Log.d("FireStore", "ChallengeCompleted not completed yet.");
+                taskManager.updateTaskStatusForSteps(4);
+                taskManager.markTaskAsCompleted("WatchedVideo");
+            } else {
+                Log.d("FireStore", "ChallengeCompleted already completed for today.");
+            }
+        });
     }
 
     private void enterFullscreen() {

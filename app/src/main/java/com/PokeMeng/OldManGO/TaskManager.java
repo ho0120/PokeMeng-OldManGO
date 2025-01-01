@@ -122,7 +122,27 @@ public class TaskManager {
             }
         });
     }
-
+    public void isTaskCompletedToday(String taskType, OnTaskCheckCompleteListener listener) {
+        String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(System.currentTimeMillis());
+        DocumentReference taskRef = db.collection("Users").document(userId)
+                .collection("hasGetReward").document(formattedDate);
+        taskRef.get().addOnCompleteListener(task -> {
+            boolean isTaskCompleted = false;
+            if (task.isSuccessful() && task.getResult() != null) {
+                DocumentSnapshot document = task.getResult();
+                Boolean taskCompleted = document.getBoolean(taskType);
+                if (taskCompleted != null && taskCompleted) {
+                    isTaskCompleted = true;
+                    Log.d("FireStore", taskType + " already completed for today.");
+                } else {
+                    Log.d("FireStore", taskType + " not completed yet.");
+                }
+            } else {
+                Log.w("FireStore", "Error getting task document", task.getException());
+            }
+            listener.onComplete(isTaskCompleted);
+        });
+    }
     public interface OnTaskCheckCompleteListener {
         void onComplete(boolean result);
     }

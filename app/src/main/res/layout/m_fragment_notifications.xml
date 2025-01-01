@@ -5,7 +5,7 @@
     android:id="@+id/filterButton"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wlecomeuse02"
+    android:background="@drawable/all_background2"
     tools:context=".Medicine.ui.notifications.NotificationsFragment">
 
         <TextView

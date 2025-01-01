@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wlecomeuse02"
+    android:background="@drawable/all_background2"
     tools:context=".Game.GameMain">
 
     <Button
@@ -13,7 +13,7 @@
         android:layout_height="60dp"
         android:layout_marginStart="-20dp"
         android:layout_marginEnd="-20dp"
-        android:layout_marginBottom="-15dp"
+        android:layout_marginBottom="-10dp"
         android:backgroundTint="@color/design_default_color_error"
         android:fontFamily="@font/jfopenhuninn"
         android:onClick="gotoMain"

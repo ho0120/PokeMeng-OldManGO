@@ -224,7 +224,7 @@ public class SetPersonalData extends AppCompatActivity implements View.OnClickLi
         // 检查所有必填字段是否填写
         if (name.isEmpty() || date.isEmpty() || (!rbt01.isChecked() && !rbt02.isChecked())
                 || emergencyContact.isEmpty() || emergencyNumber.isEmpty() || address.isEmpty()) {
-            Toast.makeText(SetPersonalData.this, "请填写所有必填字段", Toast.LENGTH_SHORT).show();
+            Toast.makeText(SetPersonalData.this, "請填寫所有必填字段", Toast.LENGTH_SHORT).show();
         } else {
             // 所有必填字段都已填写，允许返回主页面
             Intent it = new Intent(this, MainActivity.class);

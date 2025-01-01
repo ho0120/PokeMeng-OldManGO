@@ -5,6 +5,7 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,6 +38,7 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import android.app.DatePickerDialog;
 
+import com.PokeMeng.OldManGO.Medicine.Medicine;
 import com.PokeMeng.OldManGO.R;
 import com.PokeMeng.OldManGO.Medicine.BottomSheet;
 import com.PokeMeng.OldManGO.Medicine.BottomWeekdaySheet;
@@ -44,6 +46,14 @@ import com.PokeMeng.OldManGO.Medicine.DayInterval;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.io.OutputStream;
 import java.util.Calendar;
@@ -199,7 +209,6 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         return view;
     }
 
-
     // 獲取 spinner2 的位置
     private int getSpinnerPosition(String value) {
         for (int i = 0; i < spinner2.getCount(); i++) {
@@ -256,17 +265,17 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         ArrayList<String> times = getTimeContainerTexts();
         String dosage = textView9.getText().toString().trim();
 
-        // 检查 name, frequency, times, dosage、stock、stock2 是否为空
+        // 检查输入的有效性
         if (TextUtils.isEmpty(medicineName) || TextUtils.isEmpty(medicineFrequency) ||
                 times.isEmpty() || TextUtils.isEmpty(dosage) ||
                 TextUtils.isEmpty(editTextNumber.getText()) ||
                 TextUtils.isEmpty(editTextNumber2.getText()) ||
-                TextUtils.isEmpty(startDateTextView.getText())) { // 检查日期是否已填写
+                TextUtils.isEmpty(startDateTextView.getText())) {
             Toast.makeText(getActivity(), "請填寫正確藥物資料", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 检查 stock 和 stock2 是否有效
+        // 检查库存是否有效
         int stock;
         int stock2;
         try {
@@ -277,22 +286,33 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
                 Toast.makeText(getActivity(), "資料不可為0", Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            if (stock > stock2) {
+                Toast.makeText(getActivity(), "劑量不能超過庫存量", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
         } catch (NumberFormatException e) {
             Toast.makeText(getActivity(), "請填寫正確的數量", Toast.LENGTH_SHORT).show();
-            return; // 捕获异常并返回
+            return;
         }
 
         String spinner2Value = spinner2.getSelectedItem().toString();
-
         // 获取图片的 URI
         Uri imageUri;
         photo.buildDrawingCache();
         Bitmap bitmap = photo.getDrawingCache();
-        imageUri = getImageUri(getActivity(), bitmap);
 
-        if (imageUri == null) {
-            imageUri = Uri.parse("android.resource://" + getActivity().getPackageName() + "/" + R.drawable.mc_pt); // 默认图片
+        // 使用临时变量保存 imageUri
+        Uri tempImageUri = getImageUri(getActivity(), bitmap);
+
+        // 如果 tempImageUri 为 null，使用默认图片
+        if (tempImageUri == null) {
+            tempImageUri = Uri.parse("android.resource://" + getActivity().getPackageName() + "/" + R.drawable.mc_pt);
         }
+
+        // 将临时变量赋值给 imageUri，确保其不被后续代码修改
+        imageUri = tempImageUri;
 
         String startDate = startDateTextView.getText().toString().trim();
         if (startDate.equals("選擇開始日期") || TextUtils.isEmpty(startDate)) {
@@ -300,27 +320,62 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
             return;
         }
 
+        // 先查找是否已经存在相同名称的药品
+        String userUid = FirebaseAuth.getInstance().getCurrentUser().getUid(); // 获取当前用户的 UID
+        DatabaseReference medicinesRef = FirebaseDatabase.getInstance().getReference("medicines").child(userUid);
 
-        // 后续逻辑保持不变
-        Bundle result = new Bundle();
-        result.putString("medicineName", medicineName);
-        result.putString("medicineFrequency", medicineFrequency);
-        result.putStringArrayList("medicineTimes", times);
-        result.putString("dosage", dosage);
-        result.putInt("stock", stock);
-        result.putInt("stock2", stock2);
-        result.putString("spinner2Value", spinner2Value);
-        result.putString("medicineImageUrl", imageUri.toString());
-        result.putString("startDate", startDate);
+        medicinesRef.orderByChild("name").equalTo(medicineName).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    Toast.makeText(getActivity(), "此藥品已存在，請勿重複添加", Toast.LENGTH_SHORT).show();
+                } else {
+                    // 创建药品对象
+                    Medicine newMedicine = new Medicine(medicineName, medicineFrequency, times, dosage, stock, stock2, spinner2Value, imageUri.toString(), -1, startDate);
 
-        getParentFragmentManager().setFragmentResult("addMedicineResult", result);
-        NavController navController = Navigation.findNavController(requireView());
-        navController.popBackStack();
+                    // 获取药品的唯一 ID，使用当前时间戳作为 ID
+                    int medicineId = (int) System.currentTimeMillis(); // 使用时间戳作为 ID
+
+                    // 将 ID 设置到药品对象中
+                    newMedicine.setId(medicineId); // 设置药物 ID
+
+                    // 创建数据库引用并使用字符串 ID
+                    DatabaseReference medicineRef = medicinesRef.child(String.valueOf(medicineId)); // 使用字符串 ID
+
+                    // 存储药品数据到 Firebase
+                    medicineRef.setValue(newMedicine).addOnSuccessListener(aVoid -> {
+                        if (isAdded()) {
+                            // 将结果传递给 HomeFragment
+                            Bundle result = new Bundle();
+                            result.putInt("medicineId", medicineId); // 保存整数类型的 ID
+                            result.putString("medicineName", medicineName);
+                            result.putString("medicineFrequency", medicineFrequency);
+                            result.putStringArrayList("medicineTimes", times);
+                            result.putString("dosage", dosage);
+                            result.putInt("stock", stock);
+                            result.putInt("stock2", stock2);
+                            result.putString("spinner2Value", spinner2Value);
+                            result.putString("medicineImageUrl", imageUri.toString());
+                            result.putString("startDate", startDate);
+
+                            getParentFragmentManager().setFragmentResult("addMedicineResult", result);
+                            NavController navController = Navigation.findNavController(requireView());
+                            navController.popBackStack();
+                        }
+                    }).addOnFailureListener(e -> {
+                        Toast.makeText(getActivity(), "添加藥品失敗", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(getActivity(), "查找藥品時出錯", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
-
-
-    // 方法将 Bitmap 转换为 URI
+    // 提取获取图片 URI 的方法
     private Uri getImageUri(Context context, Bitmap bitmap) {
         if (bitmap == null) {
             return null;
@@ -356,9 +411,7 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
 
         return imageUri;
     }
-
     private void updateExistingMedicine() {
-        // 从 Bundle 中获取已存在药物的 ID
         int existingMedicineId = getArguments().getInt("medicineId", -1); // 使用 int 类型
         if (existingMedicineId == -1) {
             Log.e("BlankFragment", "Existing medicine ID is invalid, cannot update.");
@@ -375,7 +428,7 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         // 检查 updatedName, updatedFrequency, updatedTimes, updatedDosage 是否为空
         if (TextUtils.isEmpty(updatedName) || TextUtils.isEmpty(updatedFrequency) ||
                 updatedTimes.isEmpty() || TextUtils.isEmpty(updatedDosage) ||
-                TextUtils.isEmpty(updatedStartDate)) { // 检查日期是否已填写
+                TextUtils.isEmpty(updatedStartDate)) {
             Toast.makeText(getActivity(), "請填寫正確藥物資料", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -390,10 +443,17 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         try {
             updatedStock = Integer.parseInt(stockString);
             updatedStock2 = Integer.parseInt(stock2String);
+
             if (updatedStock <= 0 || updatedStock2 <= 0) {
                 Toast.makeText(getActivity(), "資料不可為0", Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            if (updatedStock > updatedStock2) {
+                Toast.makeText(getActivity(), "劑量不能超過庫存量", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
         } catch (NumberFormatException e) {
             Toast.makeText(getActivity(), "請填寫正確的數量", Toast.LENGTH_SHORT).show();
             return; // 捕获异常并返回
@@ -404,23 +464,39 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         // 获取图片
         photo.buildDrawingCache();
         Bitmap bitmap = photo.getDrawingCache();
+        Uri updatedImageUri = getImageUri(getActivity(), bitmap);
 
-        Bundle result = new Bundle();
-        result.putString("updatedName", updatedName);
-        result.putString("updatedFrequency", updatedFrequency);
-        result.putStringArrayList("updatedTimes", updatedTimes);
-        result.putString("updatedDosage", updatedDosage);
-        result.putInt("updatedStock", updatedStock);
-        result.putInt("updatedStock2", updatedStock2);
-        result.putParcelable("updatedImage", bitmap);
-        result.putInt("medicineId", existingMedicineId); // 保持 ID 不变
-        result.putString("updatedStartDate", updatedStartDate);
+        // 如果没有更新图片，保留之前的图片
+        if (updatedImageUri == null) {
+            updatedImageUri = Uri.parse("android.resource://" + getActivity().getPackageName() + "/" + R.drawable.mc_pt); // 默认图片
+        }
 
-        getParentFragmentManager().setFragmentResult("editResult", result);
-        NavController navController = Navigation.findNavController(requireView());
-        navController.popBackStack();
+        // 创建药品对象并更新到 Firebase
+        String userUid = FirebaseAuth.getInstance().getCurrentUser().getUid(); // 获取当前用户的 UID
+        Medicine updatedMedicine = new Medicine(updatedName, updatedFrequency, updatedTimes, updatedDosage, updatedStock, updatedStock2, updatedSpinner2Value, updatedImageUri.toString(), existingMedicineId, updatedStartDate);
+        DatabaseReference medicineRef = FirebaseDatabase.getInstance().getReference("medicines").child(userUid).child(String.valueOf(existingMedicineId));
+
+
+        medicineRef.setValue(updatedMedicine).addOnSuccessListener(aVoid -> {
+            // 发送更新结果回 HomeFragment
+            Bundle result = new Bundle();
+            result.putString("updatedName", updatedName);
+            result.putString("updatedFrequency", updatedFrequency);
+            result.putStringArrayList("updatedTimes", updatedTimes);
+            result.putString("updatedDosage", updatedDosage);
+            result.putInt("updatedStock", updatedStock);
+            result.putInt("updatedStock2", updatedStock2);
+            result.putString("updatedSpinner2Value", updatedSpinner2Value);
+            result.putInt("medicineId", existingMedicineId); // 确保 ID 被传递
+            result.putString("updatedStartDate", updatedStartDate);
+
+            getParentFragmentManager().setFragmentResult("editResult", result);
+            NavController navController = Navigation.findNavController(requireView());
+            navController.popBackStack();
+        }).addOnFailureListener(e -> {
+            // 处理错误
+        });
     }
-
 
     private void navigateToHomeFragment(boolean isDeleting) {
         NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_main5);
@@ -445,7 +521,6 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
         navController.popBackStack(R.id.navigation_home, false);
         navController.navigate(R.id.navigation_home, bundle);
     }
-
 
 
 
@@ -550,6 +625,25 @@ public class BlankFragment extends Fragment implements BottomSheet.OnFrequencySe
 
         timeTextViews.add(timeTextView);
         timeContainer.addView(timeTextView);
+    }
+
+
+    // 保存药物信息到 SharedPreferences
+    private void saveToPreferences(String medicineName, String medicineFrequency) {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("medicineName", medicineName);
+        editor.putString("medicineFrequency", medicineFrequency);
+        editor.apply();
+    }
+
+    // 从 SharedPreferences 中读取药物信息
+    private void loadFromPreferences() {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
+        String medicineName = sharedPreferences.getString("medicineName", "");
+        String medicineFrequency = sharedPreferences.getString("medicineFrequency", "");
+        editTextText.setText(medicineName);
+        textView3.setText(medicineFrequency);
     }
 
 

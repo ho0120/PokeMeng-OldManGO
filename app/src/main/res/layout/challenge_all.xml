@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wlecomeuse02"
+    android:background="@drawable/all_background2"
     tools:context=".Challenge.ChallengeAll">
 
     <ImageButton
@@ -27,7 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="-10dp"
         android:fontFamily="@font/jfopenhuninn"
-        android:text="今日步數：?步"
+        android:text="@string/ChallengeAll_myStepText"
         android:textColor="@color/white"
         android:textSize="34sp"
         app:layout_constraintBottom_toTopOf="@+id/challenge_nowLayout"
@@ -177,13 +177,14 @@
         app:layout_constraintTop_toBottomOf="@+id/challenge_nextLayout" />
 
     <ImageView
-        android:id="@+id/imageView8"
-        android:layout_width="281dp"
-        android:layout_height="615dp"
-        android:layout_marginTop="370dp"
+        android:id="@+id/challenge_doggyImage"
+        android:layout_width="280dp"
+        android:layout_height="250dp"
+        android:layout_marginBottom="-50dp"
+        android:background="@drawable/doggy"
+        android:contentDescription="@string/doggyDescription"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/doggy" />
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

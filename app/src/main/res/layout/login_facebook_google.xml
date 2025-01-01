@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wlecomeuse"
+    android:background="@drawable/all_background1"
     tools:context=".FirstLogin.FacebookGoogle">
 
     <ImageView

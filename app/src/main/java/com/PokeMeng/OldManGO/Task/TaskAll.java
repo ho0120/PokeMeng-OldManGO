@@ -17,7 +17,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,10 +28,12 @@ import androidx.core.view.WindowInsetsCompat;
 import com.PokeMeng.OldManGO.Challenge.ChallengeAll;
 import com.PokeMeng.OldManGO.DailyCheckIn.CheckIn;
 import com.PokeMeng.OldManGO.Game.GameMain;
+import com.PokeMeng.OldManGO.Medicine.MainActivity5;
 import com.PokeMeng.OldManGO.R;
 import com.PokeMeng.OldManGO.Video.video_main;
-import com.PokeMeng.OldManGO.Medicine.MainActivity5;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -52,29 +53,20 @@ import java.util.Locale;
 import java.util.Objects;
 
 public class TaskAll extends AppCompatActivity {
-    private DateInfo nowChooseDate;
-    private ActivityResultLauncher<Intent> createTask;
-    private ArrayList<String> stringList;
+    private DateInfo nowChooseDate = new DateInfo(Calendar.getInstance().get(Calendar.YEAR), Calendar.getInstance().get(Calendar.MONTH) + 1, Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
+    ArrayList<String> taskList = new ArrayList<>();
     private ArrayList<DateInfo> dateList;
     TaskAdapter adapter;
-    private boolean hasClaimedReward = false;
+    FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.task_all);
-        initFields();
         setupWindowInsets();
         loadTodaySchedule();
         setupButtons();
-        setupDateSpinner();
         checkIfRewardClaimed(); // 檢查是否已經領取過獎勵
-        //tryConnectFirebase();
-    }
-    private void initFields() {
-        nowChooseDate = new DateInfo(Calendar.getInstance().get(Calendar.YEAR), Calendar.getInstance().get(Calendar.MONTH) + 1, Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
-        createTask = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> Toast.makeText(this, result.getResultCode() == Activity.RESULT_OK ? "成功新增" : "取消新增", Toast.LENGTH_LONG).show());
-        stringList = new ArrayList<>();
     }
     private void setupWindowInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -85,19 +77,20 @@ public class TaskAll extends AppCompatActivity {
     }
     private void setupButtons() {
         findViewById(R.id.TaskAll_returnButton).setOnClickListener(v -> finish());
-        findViewById(R.id.TaskAll_addImage).setOnClickListener(v -> createTask.launch(new Intent(this, TaskAdd.class)));
+        findViewById(R.id.TaskAll_addImage).setOnClickListener(v -> registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> Toast.makeText(this, result.getResultCode() == Activity.RESULT_OK ? "成功新增" : "取消新增", Toast.LENGTH_LONG).show()).launch(new Intent(this, TaskAdd.class)));
         findViewById(R.id.TaskAll_scheduledButton).setOnClickListener(v -> startActivity(new Intent(this, TaskScheduled.class)));
         findViewById(R.id.TaskAll_cheatButton).setOnClickListener(v -> {
-            for (int i = 0; i < stringList.size(); i++) {
+            for (int i = 0; i < taskList.size(); i++) {
                 setTaskStatusTrue(i);
                 adapter.saveTaskStatus();
             }
             adapter.notifyDataSetChanged();
         });
+        setupDateSpinner();
     }
     private void setTaskStatusTrue(int position) {
         if (adapter.taskStatus == null) return;
-        int index = adapter.taskStatus.getTaskName().indexOf(stringList.get(position));
+        int index = adapter.taskStatus.getTaskName().indexOf(taskList.get(position));
         if (index != -1) {
             List<Boolean> taskStatuses = new ArrayList<>(adapter.taskStatus.getTaskStatus());
             taskStatuses.set(index, true);
@@ -109,7 +102,7 @@ public class TaskAll extends AppCompatActivity {
         ((Spinner)findViewById(R.id.TaskAll_dateSpinner)).setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                stringList.clear();
+                taskList.clear();
                 nowChooseDate = dateList.get(position);
                 loadScheduledTasks(nowChooseDate);
                 checkAndLoadTaskStatus();
@@ -120,12 +113,18 @@ public class TaskAll extends AppCompatActivity {
     }
     private void loadDateSpinner() {
         dateList = new ArrayList<>();
-        String userId = "your_user_id"; // Replace with actual user ID
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
         FirebaseFirestore.getInstance().collection("Users").document(userId).collection("TaskDetails").get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 processTaskDocuments(task.getResult().getDocuments());
-                addCurrentDateIfMissing();
+                //如果當天沒有任務，則加入當天日期
+                if (!dateList.contains(nowChooseDate)) dateList.add(nowChooseDate);
                 sortAndSetDateSpinner();
+                checkAndLoadTaskStatus(); // 重新載入當天任務
             } else
                 Log.w("TaskRead", "Error getting documents.", task.getException());
         });
@@ -146,15 +145,7 @@ public class TaskAll extends AppCompatActivity {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(timestamp.toDate());
         DateInfo dateInfo = new DateInfo(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH));
-        if (!dateList.contains(dateInfo)) {
-            dateList.add(dateInfo);
-        }
-    }
-
-    private void addCurrentDateIfMissing() {
-        if (!dateList.contains(nowChooseDate)) {
-            dateList.add(nowChooseDate);
-        }
+        if (!dateList.contains(dateInfo)) dateList.add(dateInfo);
     }
 
     private void sortAndSetDateSpinner() {
@@ -174,10 +165,12 @@ public class TaskAll extends AppCompatActivity {
     //檢查並載入任務狀態
     private void checkAndLoadTaskStatus() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userId = "your_user_id";
-        long currentDate = System.currentTimeMillis();
-        String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(currentDate);
-        db.collection("Users").document(userId)
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(nowChooseDate.toCalendar().getTime());
+        db.collection("Users").document(currentUser.getUid())
                 .collection("TaskStatus").document(formattedDate)
                 .get().addOnCompleteListener(task -> {
                     if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
@@ -190,15 +183,15 @@ public class TaskAll extends AppCompatActivity {
     }
     //當沒有任務狀態時，初始化為預設狀態
     private void initializeDefaultTaskStatus() {
-        List<String> taskNames = new ArrayList<>(Arrays.asList(stringList.toArray(new String[0])));
-        List<Boolean> defaultStatus = new ArrayList<>(Collections.nCopies(stringList.size(), false));
+        List<String> taskNames = new ArrayList<>(Arrays.asList(taskList.toArray(new String[0])));
+        List<Boolean> defaultStatus = new ArrayList<>(Collections.nCopies(taskList.size(), false));
         adapter.taskStatus = new TaskStatus(taskNames, defaultStatus);
     }
     //載入今日任務，初始化adapter並顯示在ListView上
     private void loadTodaySchedule() {
         DateInfo today = new DateInfo(Calendar.getInstance().get(Calendar.YEAR), Calendar.getInstance().get(Calendar.MONTH) + 1, Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
         ListView listView = findViewById(R.id.TaskAll_todayList);
-        adapter = new TaskAdapter(this, stringList);
+        adapter = new TaskAdapter(this, taskList);
         listView.setAdapter(adapter);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
         loadScheduledTasks(today);
@@ -206,18 +199,18 @@ public class TaskAll extends AppCompatActivity {
     //載入已排定任務
     private void loadScheduledTasks(DateInfo compareDate) {
         //載入固定任務
-        stringList.addAll(Arrays.asList("每日健走150步", "每日簽到", "用藥提醒查看", "今日已完成用藥", "觀看運動影片", "玩遊戲(防失智)", "查看運動挑戰"));
+        taskList.addAll(Arrays.asList("每日健走150步", "每日簽到", "用藥提醒查看", "今日已完成用藥", "觀看運動影片", "玩遊戲(防失智)", "查看運動挑戰"));
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
         //載入自訂任務
-        String userID = "your_user_id"; // Replace with actual user ID
-        FirebaseFirestore.getInstance().collection("Users").document(userID).collection("TaskDetails").get().addOnCompleteListener(task -> {
+        FirebaseFirestore.getInstance().collection("Users").document(currentUser.getUid()).collection("TaskDetails").get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
-                for (QueryDocumentSnapshot document : task.getResult()) {
+                for (QueryDocumentSnapshot document : task.getResult())
                     processDocument(document, compareDate);
-                }
                 adapter.notifyDataSetChanged();
-            } else {
-                Log.w("TaskRead", "Error getting documents.", task.getException());
-            }
+            } else Log.w("TaskRead", "Error getting documents.", task.getException());
         });
     }
 
@@ -229,7 +222,7 @@ public class TaskAll extends AppCompatActivity {
                 if (timestampObj instanceof Timestamp) {
                     DateInfo dateInfo = getDateInfoFromTimestamp((Timestamp) timestampObj);
                     if (compareDateInfo(Collections.singletonList(dateInfo), compareDate)) {
-                        stringList.add(taskName != null ? taskName : "null task name");
+                        taskList.add(taskName != null ? taskName : "null task name");
                         break;
                     }
                 }
@@ -249,25 +242,29 @@ public class TaskAll extends AppCompatActivity {
         return false;
     }
     //確認是否已經領取過獎勵
-    private void checkIfRewardClaimed() {
+    private boolean checkIfRewardClaimed() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userId = "your_user_id"; // Replace with actual user ID
-        long currentDate = System.currentTimeMillis();
-        String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(currentDate);
-        DocumentReference rewardRef = db.collection("Users").document(userId)
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return false;
+        }
+        String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(System.currentTimeMillis());
+        DocumentReference rewardRef = db.collection("Users").document(currentUser.getUid())
                 .collection("hasGetReward").document(formattedDate);
+        final boolean[] hasClaimedReward = {false};
         rewardRef.get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
                 DocumentSnapshot document = task.getResult();
                 if (document.exists() && document.contains("FullCompleted")) {
-                    hasClaimedReward = Boolean.TRUE.equals(document.getBoolean("FullCompleted"));
-                    if (hasClaimedReward) ((TextView)findViewById(R.id.TaskAll_hintText)).setText("已領取全選獎勵！");
+                    hasClaimedReward[0] = Boolean.TRUE.equals(document.getBoolean("FullCompleted"));
+                    if (hasClaimedReward[0]) ((TextView)findViewById(R.id.TaskAll_hintText)).setText("已領取全選獎勵！");
                 }
             } else {
                 Log.w("FireStore", "Error getting reward document", task.getException());
             }
         });
         fetchAndDisplayUserPoints(); // 查詢用戶積分並顯示
+        return hasClaimedReward[0];
     }
     @Override
     protected void onResume() {
@@ -307,10 +304,7 @@ public class TaskAll extends AppCompatActivity {
                 Toast.makeText(getContext(), "此為固定任務", Toast.LENGTH_SHORT).show();
             else if(!compareDateInfo(Collections.singletonList(dateList.get(((Spinner)findViewById(R.id.TaskAll_dateSpinner)).getSelectedItemPosition())),today))
                 Toast.makeText(getContext(), "只能勾選當日完成的任務喔", Toast.LENGTH_SHORT).show();
-            else{
-                updateTaskStatus(position);
-                notifyDataSetChanged();
-            }
+            else updateTaskStatus(position);
         }
         private void changeActivity(int position) {
             switch (position){
@@ -354,14 +348,18 @@ public class TaskAll extends AppCompatActivity {
                 taskStatus.setTaskStatus(taskStatuses);
             }
             saveTaskStatus();
+            notifyDataSetChanged();
         }
         private void saveTaskStatus() {
             FirebaseFirestore db = FirebaseFirestore.getInstance();
-            String userId = "your_user_id"; // Replace with actual user ID
+            if (currentUser == null) {
+                Log.w("TaskRead", "No current user found.");
+                return;
+            }
             long currentDate = System.currentTimeMillis();
             String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(currentDate);
-            db.collection("Users").document(userId)
-                    .collection("TaskStatus").document(formattedDate).set(taskStatus)
+            db.collection("Users").document(currentUser.getUid())
+                    .collection("TaskStatus").document(formattedDate).set(taskStatus, SetOptions.merge())
                     .addOnSuccessListener(aVoid -> Log.d("FireStore", "日期狀態成功上傳!"))
                     .addOnFailureListener(e -> Log.w("FireStore", "上船日期狀態失敗", e));
             checkAndAddPointsIfAllTasksCompleted();
@@ -369,14 +367,14 @@ public class TaskAll extends AppCompatActivity {
     }
     private void checkAndAddPointsIfAllTasksCompleted() {
         Log.d("TaskAll", "Checking if all tasks are completed");
-        if (adapter.taskStatus == null || hasClaimedReward) return;
+        if (adapter.taskStatus == null) return;
         boolean allTasksCompleted = true;
         for (Boolean status : adapter.taskStatus.getTaskStatus())
             if (!status) {
                 allTasksCompleted = false;
                 break;
             }
-        if (allTasksCompleted) {
+        if (allTasksCompleted && !checkIfRewardClaimed()) {
             addPoints();
             markRewardAsClaimed();
         }
@@ -384,7 +382,11 @@ public class TaskAll extends AppCompatActivity {
 
     private void addPoints() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userId = "your_user_id"; // 替換為實際的用戶ID
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
         DocumentReference userRef = db.collection("Users").document(userId);
         userRef.get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
@@ -406,21 +408,26 @@ public class TaskAll extends AppCompatActivity {
     //標記獎勵已領取並上傳
     private void markRewardAsClaimed() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userId = "your_user_id"; // Replace with actual user ID
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
         long currentDate = System.currentTimeMillis();
         String formattedDate = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(currentDate);
-        DocumentReference rewardRef = db.collection("Users").document(userId)
+        DocumentReference rewardRef = db.collection("Users").document(currentUser.getUid())
                 .collection("hasGetReward").document(formattedDate);
-        rewardRef.set(Collections.singletonMap("FullCompleted", true))
+        rewardRef.set(Collections.singletonMap("FullCompleted", true), SetOptions.merge())
                 .addOnSuccessListener(aVoid -> Log.d("FireStore", "Reward claim status updated!"))
                 .addOnFailureListener(e -> Log.w("FireStore", "Error updating reward claim status", e));
         checkIfRewardClaimed();
     }
     private void fetchAndDisplayUserPoints() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userId = "your_user_id"; // 替換為實際的用戶ID
-        DocumentReference userRef = db.collection("Users").document(userId);
-        userRef.get().addOnCompleteListener(task -> {
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        db.collection("Users").document(currentUser.getUid()).get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
                 DocumentSnapshot document = task.getResult();
                 Long currentPoints = document.getLong("points");
@@ -483,8 +490,7 @@ public class TaskAll extends AppCompatActivity {
                 textView.setPadding(16, 16, 16, 16);
                 textView.setTextSize(18);
                 textView.setTextColor(Color.BLACK);
-            } else
-                textView = (TextView) convertView;
+            } else textView = (TextView) convertView;
             textView.setText(items.get(position));
             textView.setBackgroundColor(position == specialItemIndex ? specialItemColor : 0);
             return textView;

@@ -2,6 +2,7 @@ package com.PokeMeng.OldManGO.Task;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -16,6 +17,8 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.PokeMeng.OldManGO.R;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.hdev.calendar.bean.DateInfo;
 import com.hdev.calendar.view.MultiCalendarView;
@@ -28,6 +31,7 @@ import java.util.Map;
 
 public class TaskAdd extends AppCompatActivity {
     List<DateInfo> dateInfoList;
+    FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,17 +94,29 @@ public class TaskAdd extends AppCompatActivity {
         taskData.put("任務名稱", taskName);
         taskData.put("任務日期", dateTimestamps);
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        String userID = "your_user_id"; // Replace with actual user name
-        db.collection("Users").document(userID).set(new HashMap<>()) // 創建具有 ID 的文件
-                .addOnSuccessListener(aVoid -> {
-                    // 生成唯一 ID
-                    String taskDetailId = db.collection("Users").document(userID).collection("TaskDetails").document().getId();
-                    db.collection("Users").document(userID).collection("TaskDetails").document(taskDetailId)
-                            .set(taskData)
-                            .addOnSuccessListener(documentReference -> {
-                                setResult(RESULT_OK, getIntent());
-                                finish();
-                            }).addOnFailureListener(e -> Toast.makeText(this, "Error saving task: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                }).addOnFailureListener(e -> Toast.makeText(this, "Error creating task document: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        if (currentUser == null) {
+            Log.w("TaskRead", "No current user found.");
+            return;
+        }
+        String userId = currentUser.getUid();
+        db.collection("Users").document(userId).get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                db.collection("Users").document(userId).collection("TaskDetails").add(taskData)
+                        .addOnSuccessListener(documentReference -> {
+                            setResult(RESULT_OK, getIntent());
+                            finish();
+                        }).addOnFailureListener(e -> Toast.makeText(this, "Error saving task: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            } else {
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("gmail", currentUser.getEmail());
+                userData.put("name", currentUser.getDisplayName());
+                db.collection("Users").document(userId).set(userData)
+                        .addOnSuccessListener(aVoid -> db.collection("Users").document(userId).collection("TaskDetails").add(taskData)
+                                .addOnSuccessListener(documentReference -> {
+                                    setResult(RESULT_OK, getIntent());
+                                    finish();
+                                }).addOnFailureListener(e -> Toast.makeText(this, "Error saving task: " + e.getMessage(), Toast.LENGTH_SHORT).show())).addOnFailureListener(e -> Toast.makeText(this, "Error creating user document: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).addOnFailureListener(e -> Toast.makeText(this, "Error fetching user document: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 }
